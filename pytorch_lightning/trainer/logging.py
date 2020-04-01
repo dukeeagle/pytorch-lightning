@@ -21,7 +21,7 @@ class TrainerLoggingMixin(ABC):
     use_dp: bool
     use_ddp2: bool
     default_save_path: str
-    slurm_job_id: int
+    job_id: int
     num_gpus: int
 
     def configure_logger(self, logger):
@@ -29,7 +29,7 @@ class TrainerLoggingMixin(ABC):
             # default logger
             self.logger = TensorBoardLogger(
                 save_dir=self.default_save_path,
-                version=self.slurm_job_id,
+                version=self.job_id,
                 name='lightning_logs'
             )
             self.logger.rank = 0

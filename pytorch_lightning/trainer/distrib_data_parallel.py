@@ -145,6 +145,7 @@ class TrainerDDPMixin(ABC):
     amp_level: str
     use_tpu: bool
     default_save_path: str
+    slurm:bool
 
     @property
     @abstractmethod
@@ -217,6 +218,7 @@ class TrainerDDPMixin(ABC):
         log.info(f'GPU available: {torch.cuda.is_available()}, used: {self.on_gpu}')
 
     def configure_slurm_ddp(self, num_gpu_nodes):
+        assert self.slurm, "Tried to configure slurm ddp with slurm disabled, this should not happen"
         self.is_slurm_managing_tasks = False
 
         # extract SLURM flag vars
@@ -275,8 +277,12 @@ class TrainerDDPMixin(ABC):
         # node rank using relative slurm id
         # otherwise default to node rank 0
         try:
-            node_id = os.environ['SLURM_NODEID']
-            self.node_rank = int(node_id)
+            if self.slurm:
+                node_id = os.environ['SLURM_NODEID']
+                self.node_rank = int(node_id)
+            else:
+                node_id = os.environ['LIGHTNING_NODE_ID']
+                return int(node_id)
         except Exception:
             self.node_rank = 0
 
@@ -383,3 +389,4 @@ class TrainerDDPMixin(ABC):
             root_node = name + number
 
         return root_node
+

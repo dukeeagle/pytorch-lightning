@@ -72,6 +72,7 @@ class LightningModule(ABC, GradInformation, ModelIO, ModelHooks):
         self.use_amp = False
 
         self.hparams = None
+        self.slurm = False
 
     def print(self, *args, **kwargs) -> None:
         r"""
@@ -843,7 +844,10 @@ class LightningModule(ABC, GradInformation, ModelIO, ModelHooks):
         # guarantees unique ports across jobs from same grid search
         try:
             # use the last 4 numbers in the job id as the id
-            default_port = os.environ['SLURM_JOB_ID']
+            if self.slurm:
+                default_port = os.environ['SLURM_JOB_ID']
+            else:
+                default_port=os.environ["LIGHTNING_JOB_ID"]
             default_port = default_port[-4:]
 
             # all ports should be in the 10k+ range
@@ -860,7 +864,10 @@ class LightningModule(ABC, GradInformation, ModelIO, ModelHooks):
 
         # figure out the root node addr
         try:
-            root_node = os.environ['SLURM_NODELIST'].split(' ')[0]
+            if self.slurm:
+                root_node = os.environ['SLURM_NODELIST'].split(' ')[0]
+            else:
+                root_node = os.environ['LIGHTNING_NODELIST'].split(' ')[0]
         except Exception:
             root_node = '127.0.0.2'
 

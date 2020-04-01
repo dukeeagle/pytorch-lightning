@@ -122,6 +122,7 @@ class Trainer(
             min_nb_epochs=None,  # backward compatible, todo: remove in v0.8.0
             use_amp=False,  # backward compatible, todo: remove in v0.9.0
             nb_sanity_val_steps=None,  # backward compatible, todo: remove in v0.8.0
+            slurm=False,
             **kwargs
     ):
         r"""
@@ -394,6 +395,7 @@ class Trainer(
         self.use_ddp2 = False
         self.use_dp = False
         self.single_gpu = False
+        self.slurm=slurm
         self.distributed_backend = distributed_backend
         self.set_distributed_mode(distributed_backend, self.num_nodes)
 
@@ -406,7 +408,9 @@ class Trainer(
         self.proc_rank = 0
         self.world_size = 1
         self.node_rank = 0
-        self.configure_slurm_ddp(self.num_nodes)
+        self.is_slurm_managing_tasks = False
+        if self.slurm:
+            self.configure_slurm_ddp(self.num_nodes)
 
         # nvidia setup
         self.set_nvidia_flags(self.is_slurm_managing_tasks, self.data_parallel_device_ids)
@@ -446,9 +450,12 @@ class Trainer(
         self.on_init_end()
 
     @property
-    def slurm_job_id(self) -> int:
+    def job_id(self) -> int:
         try:
-            job_id = os.environ['SLURM_JOB_ID']
+            if self.slurm:
+                job_id = os.environ['SLURM_JOB_ID']
+            else:
+                job_id = os.environ['LIGHTNING_JOB_ID']
             job_id = int(job_id)
         except Exception:
             job_id = None
@@ -659,12 +666,18 @@ class Trainer(
         # route to appropriate start method
         # when using multi-node or DDP within a node start each module in a separate process
         if self.use_ddp2:
-            task = int(os.environ['SLURM_LOCALID'])
+            if self.slurm:
+                task = int(os.environ['SLURM_LOCALID'])
+            else:
+                task = int(os.environ['LIGHTNING_LOCALID'])
             self.ddp_train(task, model)
 
         elif self.use_ddp:
-            if self.is_slurm_managing_tasks:
+            if self.slurm and self.is_slurm_managing_tasks:
                 task = int(os.environ['SLURM_LOCALID'])
+                self.ddp_train(task, model)
+            elif self.ray:
+                task = int(os.environ['LIGHTNING_LOCALID'])
                 self.ddp_train(task, model)
             else:
                 self.__set_random_port()
@@ -985,6 +998,7 @@ class Trainer(
             self.run_evaluation(test_mode=True)
 
         self.testing = False
+
 
 
 class _PatchDataLoader(object):

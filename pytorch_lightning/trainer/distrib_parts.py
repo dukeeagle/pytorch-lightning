@@ -384,6 +384,7 @@ class TrainerDPMixin(ABC):
     tpu_global_core_rank: int
     use_tpu: bool
     data_parallel_device_ids: ...
+    slurm:bool
 
     @abstractmethod
     def run_pretrain_routine(self, *args):
@@ -413,6 +414,7 @@ class TrainerDPMixin(ABC):
             m.use_tpu = self.use_tpu
             m.tpu_local_core_rank = self.tpu_local_core_rank
             m.tpu_global_core_rank = self.tpu_global_core_rank
+            m.slurm = self.slurm
 
     def transfer_batch_to_tpu(self, batch):
         return self.__transfer_data_to_device(batch, device='tpu')

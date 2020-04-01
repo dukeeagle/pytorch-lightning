@@ -18,7 +18,7 @@ class TrainerCallbackConfigMixin(ABC):
 
     @property
     @abstractmethod
-    def slurm_job_id(self) -> int:
+    def job_id(self) -> int:
         """Warning: this is just empty shell for code implemented in other class."""
 
     @abstractmethod

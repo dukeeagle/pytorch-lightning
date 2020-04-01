@@ -397,7 +397,7 @@ Example::
     # default logger used by trainer
     logger = TensorBoardLogger(
         save_dir=os.getcwd(),
-        version=self.slurm_job_id,
+        version=self.job_id,
         name='lightning_logs'
     )
 
