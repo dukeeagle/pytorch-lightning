@@ -33,14 +33,15 @@ class Foo(LightningModule):
         ret={"loss":loss}
         print(ret)
         return ret
-from pytorch_lightning.utilities.ray import RayTrainer,RayRemoteTrainer
+if __name__=="__main__":
+    from pytorch_lightning.utilities.ray import RayTrainer,RayRemoteTrainer
 
-@ray.remote(num_gpus=None)
-class RayRemote(RayRemoteTrainer):
-    pass
+    @ray.remote(num_gpus=None)
+    class RayRemote(RayRemoteTrainer):
+        pass
 
-trainer=RayTrainer(RayRemote,num_nodes=1,distributed_backend="ddp",_ray_random_seed=5,gpus=None)
-trainer.make_model(lambda: Foo())
-sd=trainer.fit()
-print(sd)
+    trainer=RayTrainer(RayRemote,num_nodes=1,distributed_backend="ddp",_ray_random_seed=5,gpus=None)
+    trainer.make_model(lambda: Foo())
+    sd=trainer.fit()
+    print(sd)
 
