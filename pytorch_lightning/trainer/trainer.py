@@ -123,6 +123,7 @@ class Trainer(
             use_amp=False,  # backward compatible, todo: remove in v0.9.0
             nb_sanity_val_steps=None,  # backward compatible, todo: remove in v0.8.0
             slurm=False,
+            ray=False,
             **kwargs
     ):
         r"""
@@ -396,6 +397,7 @@ class Trainer(
         self.use_dp = False
         self.single_gpu = False
         self.slurm=slurm
+        self.ray=ray
         self.distributed_backend = distributed_backend
         self.set_distributed_mode(distributed_backend, self.num_nodes)
 

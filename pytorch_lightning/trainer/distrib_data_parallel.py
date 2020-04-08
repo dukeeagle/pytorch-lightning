@@ -255,8 +255,8 @@ class TrainerDDPMixin(ABC):
         # set the correct cuda visible devices (using pci order)
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 
-        # when slurm is managing the task it sets the visible devices
-        if not is_slurm_managing_tasks:
+        # when slurm or ray are managing the task they set the visible devices
+        if not (is_slurm_managing_tasks or self.ray):
             if isinstance(data_parallel_device_ids, int):
                 id_str = ','.join(str(x) for x in list(range(data_parallel_device_ids)))
                 os.environ["CUDA_VISIBLE_DEVICES"] = id_str
@@ -291,7 +291,10 @@ class TrainerDDPMixin(ABC):
 
         # determine which process we are and world size
         if self.use_ddp:
-            self.proc_rank = self.node_rank * self.num_gpus + gpu_idx
+            if self.ray:
+                self.proc_rank = self.node_rank * self.num_gpus
+            else:
+                self.proc_rank = self.node_rank * self.num_gpus + gpu_idx
             self.world_size = self.num_gpu_nodes * self.num_gpus
 
         elif self.use_ddp2:
@@ -314,16 +317,23 @@ class TrainerDDPMixin(ABC):
             self.init_optimizers(model.configure_optimizers())
 
         # MODEL
-        # copy model to each gpu
+        # copy model to each gpu. Ray gives access to 1 gpu per actor, so here we need to use GPU 0 for everything
         if self.distributed_backend == 'ddp':
-            torch.cuda.set_device(gpu_idx)
-        model.cuda(gpu_idx)
+            if self.ray:
+                torch.cuda.set_device(0)
+                model.cuda(0)
+            else:
+                torch.cuda.set_device(gpu_idx)
+                model.cuda(gpu_idx)
 
         # set model properties before going into wrapper
         self.copy_trainer_model_properties(model)
 
         # override root GPU
-        self.root_gpu = gpu_idx
+        if self.ray:
+            self.root_gpu = 0
+        else:
+            self.root_gpu = gpu_idx
 
         # AMP
         # run through amp wrapper before going to distributed DP
@@ -334,7 +344,10 @@ class TrainerDDPMixin(ABC):
 
         # DDP2 uses all GPUs on the machine
         if self.distributed_backend == 'ddp':
-            device_ids = [gpu_idx]
+            if self.ray:
+                device_ids = [0]
+            else:
+                device_ids = [gpu_idx]
         elif self.use_ddp2:
             device_ids = self.data_parallel_device_ids
         else:

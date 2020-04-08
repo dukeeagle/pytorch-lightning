@@ -6,6 +6,7 @@ import os
 import random
 import torch
 import numpy as np
+import sys
 
 def set_seed(seed,deterministic=True,benchmark=False):
     """
@@ -22,6 +23,7 @@ def set_seed(seed,deterministic=True,benchmark=False):
     torch.backends.cudnn.deterministic = deterministic
     torch.backends.cudnn.benchmark=benchmark
 
+@ray.remote
 class RayRemoteTrainer(Trainer):
     def __init__(self,random_seed,node_rank,local_rank,*args,**kwargs):
         self._node_rank=node_rank
@@ -65,10 +67,11 @@ def state_dict(self):
 
 
 class RayTrainer:
-    def __init__(self,remotetrainer_class,*trainer_args:List,_ray_random_seed=None,**trainer_kwargs:Dict):
-        ray.init()
+    #TODO: probably want this or RayRemoteTrainer as a wrapper arround the original trainer or as a mixin?
+    def __init__(self,*trainer_args:List,_ray_address="auto",_ray_redis_pw=None,_ray_random_seed=None,**trainer_kwargs:Dict):
+        ray.init(address=_ray_address,redis_password=_ray_redis_pw)
         if _ray_random_seed is None:
-            _ray_random_seed=random.randint()
+            _ray_random_seed = random.randint(0,sys.maxsize)
         dpbackend=trainer_kwargs.get("distributed_backend")
         num_nodes = trainer_kwargs["num_nodes"]
         any_gpus=trainer_kwargs.get("gpus") is not None
@@ -83,7 +86,7 @@ class RayTrainer:
         else:
            raise ValueError("Only ddp and ddp2 implemented for now, other stuff doesn't really make sense? ")
         self.remote_trainers = []
-        RemoteTrainer = remotetrainer_class
+        RemoteTrainer = RayRemoteTrainer.options(num_gpus=actor_gpus)
         for node_rank in range(num_nodes):
             for local_rank in range(local_actors):
                 rt=RemoteTrainer.remote(_ray_random_seed,node_rank,local_rank,*trainer_args, **trainer_kwargs)
