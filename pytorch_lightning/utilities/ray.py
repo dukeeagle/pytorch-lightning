@@ -7,6 +7,7 @@ import random
 import torch
 import numpy as np
 import sys
+import uuid
 
 def set_seed(seed,deterministic=True,benchmark=False):
     """
@@ -87,6 +88,7 @@ class RayTrainer:
            raise ValueError("Only ddp and ddp2 implemented for now, other stuff doesn't really make sense? ")
         self.remote_trainers = []
         RemoteTrainer = RayRemoteTrainer.options(num_gpus=actor_gpus)
+        trainer_kwargs["_data_lock"]="ray_lock_"+str(uuid.uuid4())
         for node_rank in range(num_nodes):
             for local_rank in range(local_actors):
                 rt=RemoteTrainer.remote(_ray_random_seed,node_rank,local_rank,*trainer_args, **trainer_kwargs)

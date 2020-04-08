@@ -291,10 +291,7 @@ class TrainerDDPMixin(ABC):
 
         # determine which process we are and world size
         if self.use_ddp:
-            if self.ray:
-                self.proc_rank = self.node_rank * self.num_gpus
-            else:
-                self.proc_rank = self.node_rank * self.num_gpus + gpu_idx
+            self.proc_rank = self.node_rank * self.num_gpus + gpu_idx
             self.world_size = self.num_gpu_nodes * self.num_gpus
 
         elif self.use_ddp2:
@@ -309,7 +306,10 @@ class TrainerDDPMixin(ABC):
         # try to init for 20 times at max in case ports are taken
         # where to store ip_table
         model.trainer = self
-        model.init_ddp_connection(self.proc_rank, self.world_size)
+        if self.ray:
+            model.init_ddp_connection(self.proc_rank, self.world_size)
+        else:
+            model.init_ddp_connection(self.proc_rank, self.world_size)
 
         # CHOOSE OPTIMIZER
         # allow for lr schedulers as well

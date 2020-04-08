@@ -34,6 +34,7 @@ from pytorch_lightning.trainer.training_loop import TrainerTrainLoopMixin
 from pytorch_lightning.trainer.training_tricks import TrainerTrainingTricksMixin
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
 from pytorch_lightning.trainer.supporters import TensorRunningMean
+from filelock import FileLock
 
 try:
     from apex import amp
@@ -124,6 +125,7 @@ class Trainer(
             nb_sanity_val_steps=None,  # backward compatible, todo: remove in v0.8.0
             slurm=False,
             ray=False,
+            _data_lock=None,
             **kwargs
     ):
         r"""
@@ -383,7 +385,7 @@ class Trainer(
 
         # allow int, string and gpu list
         self.gpus = gpus
-        self.data_parallel_device_ids = parse_gpu_ids(self.gpus)
+        self.data_parallel_device_ids = parse_gpu_ids(self.gpus,ray)
         self.root_gpu = determine_root_gpu_device(self.data_parallel_device_ids)
 
         # tpu state flags
@@ -663,7 +665,11 @@ class Trainer(
         # download the data and do whatever transforms we need
         # do before any spawn calls so that the model can assign properties
         # only on proc 0 because no spawn has happened yet
-        model.prepare_data()
+        if _data_lock is not None:
+            with FileLock(_data_lock):
+                model.prepare_data()
+        else
+            model.prepare_data()
 
         # route to appropriate start method
         # when using multi-node or DDP within a node start each module in a separate process

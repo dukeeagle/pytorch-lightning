@@ -579,13 +579,16 @@ def normalize_parse_gpu_input_to_list(gpus):
     return list(range(gpus))
 
 
-def sanitize_gpu_ids(gpus):
+def sanitize_gpu_ids(gpus,ray=False):
     """
     :param gpus: list of ints corresponding to GPU indices
         Checks that each of the GPUs in the list is actually available.
         Throws if any of the GPUs is not available.
     :return: unmodified gpus variable
     """
+    if ray:
+        assert len(get_all_available_gpus())==1 and get_all_available_gpus()[0]==0
+        return gpus
     all_available_gpus = get_all_available_gpus()
     for gpu in gpus:
         if gpu not in all_available_gpus:
@@ -596,7 +599,7 @@ def sanitize_gpu_ids(gpus):
     return gpus
 
 
-def parse_gpu_ids(gpus):
+def parse_gpu_ids(gpus,ray=False):
     """
     :param gpus: Int, string or list
         An int -1 or string '-1' indicate that all available GPUs should be used.
@@ -622,7 +625,7 @@ def parse_gpu_ids(gpus):
 
     gpus = normalize_parse_gpu_string_input(gpus)
     gpus = normalize_parse_gpu_input_to_list(gpus)
-    gpus = sanitize_gpu_ids(gpus)
+    gpus = sanitize_gpu_ids(gpus,ray)
 
     if not gpus:
         raise MisconfigurationException("GPUs requested but none are available.")
