@@ -400,6 +400,7 @@ class Trainer(
         self.single_gpu = False
         self.slurm=slurm
         self.ray=ray
+        self._data_lock=_data_lock
         self.distributed_backend = distributed_backend
         self.set_distributed_mode(distributed_backend, self.num_nodes)
 
@@ -665,10 +666,10 @@ class Trainer(
         # download the data and do whatever transforms we need
         # do before any spawn calls so that the model can assign properties
         # only on proc 0 because no spawn has happened yet
-        if _data_lock is not None:
-            with FileLock(_data_lock):
+        if self._data_lock is not None:
+            with FileLock(self._data_lock):
                 model.prepare_data()
-        else
+        else:
             model.prepare_data()
 
         # route to appropriate start method
